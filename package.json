@@ -3,7 +3,11 @@
   "productName": "One Day or Day One",
   "version": "1.0.0",
   "description": "A to-do app that turns someday into Day One.",
-  "author": "Loseless02",
+  "author": {
+    "name": "Loseless02",
+    "email": "102375123+Loseless02@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Loseless02/one-day-or-day-one",
   "license": "UNLICENSED",
   "private": true,
   "main": "desktop/main.js",
@@ -19,6 +23,7 @@
     "appId": "app.onedaydayone.desktop",
     "productName": "One Day or Day One",
     "icon": "build/icon.png",
+    "artifactName": "One-Day-or-Day-One-${version}-${arch}.${ext}",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -40,6 +45,7 @@
       ]
     },
     "nsis": {
+      "artifactName": "One-Day-or-Day-One-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "One Day or Day One"
@@ -60,7 +66,7 @@
         "deb"
       ],
       "category": "Office",
-      "maintainer": "Loseless02"
+      "maintainer": "Loseless02 <102375123+Loseless02@users.noreply.github.com>"
     }
   },
   "devDependencies": {

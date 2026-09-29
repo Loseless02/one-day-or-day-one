@@ -2,6 +2,11 @@
 
 A local to-do app built around one idea: stop saying "one day," start saying "day one," and make finishing things feel good.
 
+## Download
+
+- **Windows, macOS, Linux:** grab the installer from [Releases](https://github.com/Loseless02/one-day-or-day-one/releases/latest).
+- **iPhone / Android / any browser:** open **https://loseless02.github.io/one-day-or-day-one/**. On iPhone, tap Share → **Add to Home Screen** for the full-screen, offline app.
+
 ## Run
 
 Open `index.html` in a browser. No install, no build, no server, no account. Data lives in the browser's `localStorage`; use **Settings → Export backup** to save a `.json` copy. (Opened straight from disk, the browser blocks the recorded instruments, so the synthesized ones play instead. Hosted or in the desktop app, you get the real sax and piano.)
@@ -31,7 +36,7 @@ The builds are not code-signed, so the first launch shows a warning: on Windows 
 
 ## Install on iPhone / in a browser
 
-It's a Progressive Web App. Host the folder on any static HTTPS host (GitHub Pages, Cloudflare Pages, Netlify), then:
+It's a Progressive Web App, hosted at https://loseless02.github.io/one-day-or-day-one/ (or put the folder on any static HTTPS host), then:
 
 - **iPhone:** open the URL in Safari → Share → **Add to Home Screen**. Opens full-screen, works offline.
 - **Windows / Mac:** open it in Chrome or Edge → install icon in the address bar.
