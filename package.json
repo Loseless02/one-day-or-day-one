@@ -1,0 +1,70 @@
+{
+  "name": "one-day-or-day-one",
+  "productName": "One Day or Day One",
+  "version": "1.0.0",
+  "description": "A to-do app that turns someday into Day One.",
+  "author": "Loseless02",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node tools/make-icons.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "app.onedaydayone.desktop",
+    "productName": "One Day or Day One",
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "manifest.webmanifest",
+      "css/**",
+      "js/**",
+      "icons/**",
+      "samples/**",
+      "desktop/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "One Day or Day One"
+    },
+    "portable": {
+      "artifactName": "One-Day-or-Day-One-${version}-portable.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "maintainer": "Loseless02"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.0",
+    "electron-builder": "^26.15.3"
+  }
+}

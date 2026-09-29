@@ -1,0 +1,49 @@
+# Builds the desktop app on real Windows, macOS and Linux machines.
+# Run it from the Actions tab ("Run workflow"), or push a tag like v1.0.0.
+# The installers appear as downloadable artifacts on the run's page.
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win
+            files: |
+              dist/*.exe
+          - os: macos-latest
+            args: --mac --arm64 --x64
+            files: |
+              dist/*.dmg
+              dist/*.zip
+          - os: ubuntu-latest
+            args: --linux AppImage deb tar.gz
+            files: |
+              dist/*.AppImage
+              dist/*.deb
+              dist/*.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          # No code-signing certificates: builds are unsigned (see README for first-launch steps).
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: one-day-or-day-one-${{ runner.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error

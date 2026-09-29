@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>One Day or Day One</title>
+  <meta name="description" content="A to-do app that turns someday into Day One.">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a0c16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Day One">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Hide the app before first paint when a passcode is set.
+    try { if ((JSON.parse(localStorage.getItem('onedaydayone.lock')) || {}).hash) document.documentElement.classList.add('locked'); } catch (e) {}
+  </script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="amb-sky"></div>
+    <div class="stars s1"></div>
+    <div class="stars s2"></div>
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="amb-horizon"></div>
+    <div class="embers"></div>
+  </div>
+
+  <div class="app">
+    <header class="hud">
+      <div class="brand" id="brand" title="One Day or Day One">
+        <span class="brand-word brand-a">ONE DAY</span>
+        <span class="brand-or">or</span>
+        <span class="brand-word brand-b">DAY ONE</span>
+      </div>
+
+      <div class="hud-stats">
+        <div class="level" id="level" title="Level">
+          <svg viewBox="0 0 44 44" class="level-ring" aria-hidden="true">
+            <circle cx="22" cy="22" r="19" class="ring-bg"/>
+            <circle cx="22" cy="22" r="19" class="ring-fg" id="levelRing"/>
+          </svg>
+          <span class="level-num" id="levelNum">1</span>
+        </div>
+        <div class="level-text">
+          <div class="level-title" id="levelTitle">Spark</div>
+          <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
+          <div class="xp-label"><span id="xpInto">0</span> / <span id="xpNeed">100</span> XP</div>
+        </div>
+
+        <div class="streak" id="streak" title="Streak: days in a row with at least one Day One win">
+          <svg viewBox="0 0 24 24" class="flame" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3-1-3 0-6 1-9.5z"/></svg>
+          <span id="streakNum">0</span>
+        </div>
+
+        <div class="combo" id="combo" aria-live="polite">
+          <div class="combo-label">COMBO <b id="comboNum">x1</b></div>
+          <div class="combo-bar"><div class="combo-fill" id="comboFill"></div></div>
+        </div>
+      </div>
+
+      <div class="hud-actions">
+        <button class="icon-btn rp" id="songBtn" title="Play today's song: every win today is a note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+          <span id="songCount">0</span>
+        </button>
+        <button class="icon-btn rp" id="soundBtn" title="Sound on/off">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" class="waves"/></svg>
+        </button>
+        <button class="icon-btn rp" id="lockBtn" title="Lock now (L)" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        </button>
+        <button class="icon-btn rp" id="settingsBtn" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-view="today" class="active">Today</button>
+      <button role="tab" data-view="vault">Vault <span class="tab-count" id="vaultCount"></span></button>
+      <button role="tab" data-view="sky">Sky <span class="tab-count" id="skyCount"></span></button>
+      <span class="tab-ink" id="tabInk"></span>
+    </nav>
+
+    <main>
+      <!-- TODAY -->
+      <section class="view" id="view-today">
+        <div class="hero">
+          <div class="hero-date" id="heroDate"></div>
+          <h1 class="hero-line" id="heroLine">Day One.</h1>
+          <div class="hero-sub" id="heroSub"></div>
+        </div>
+
+        <div class="ritual" id="ritual" hidden></div>
+
+        <div class="lanes">
+          <section class="lane lane-dayone">
+            <header class="lane-head">
+              <h2>Day One <small>today, for real</small></h2>
+              <span class="lane-count" id="dayoneCount"></span>
+            </header>
+            <form class="add" data-lane="today">
+              <input name="title" placeholder="What makes today Day One?" autocomplete="off" maxlength="140" aria-label="New Day One task" enterkeyhint="done">
+              <button type="submit" class="rp" aria-label="Add">+</button>
+            </form>
+            <ul class="cards" id="dayoneList"></ul>
+            <div class="empty" id="dayoneEmpty">Nothing committed yet. Pull something from <b>One Day</b>, or add one thing. Only one.</div>
+            <div class="swipe-tip touch-only">Swipe a card left to send it back to One Day.</div>
+            <details class="done-today" id="doneWrap">
+              <summary>Won today <span id="doneCount">0</span></summary>
+              <ul class="done-list" id="doneList"></ul>
+            </details>
+          </section>
+
+          <section class="lane lane-oneday">
+            <header class="lane-head">
+              <h2>One Day <small>someday, maybe</small></h2>
+              <span class="lane-count" id="onedayCount"></span>
+            </header>
+            <form class="add" data-lane="someday">
+              <input name="title" placeholder="Park it here. It will gather dust." autocomplete="off" maxlength="140" aria-label="New One Day task" enterkeyhint="done">
+              <button type="submit" class="rp" aria-label="Add">+</button>
+            </form>
+            <ul class="cards" id="onedayList"></ul>
+            <div class="empty" id="onedayEmpty">No somedays. Either you are very decisive or very new here.</div>
+            <div class="swipe-tip touch-only">Swipe right to make it Day One. Swipe left to delete.</div>
+          </section>
+        </div>
+      </section>
+
+      <!-- VAULT -->
+      <section class="view" id="view-vault" hidden>
+        <div class="vault-head">
+          <h2>The Vault</h2>
+          <p>Every win drops a relic. Some are common. Some you will chase for weeks.</p>
+          <div class="stat-row" id="vaultStats"></div>
+        </div>
+        <div class="heat" id="heat"></div>
+        <div class="pity" id="pity"></div>
+        <div id="vaultGrid"></div>
+      </section>
+
+      <!-- SKY -->
+      <section class="view" id="view-sky" hidden>
+        <div class="sky-head">
+          <h2>Your Sky</h2>
+          <p>Every finished task is a star. Each day's wins connect into a constellation. Gold lines mean a perfect day. Tap a star to hear that day's song.</p>
+        </div>
+        <div class="sky-wrap" id="skyWrap">
+          <canvas id="sky"></canvas>
+          <div class="sky-tip" id="skyTip" hidden></div>
+          <div class="sky-empty" id="skyEmpty">Your sky is dark. Finish one task and light the first star.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="sheet-wrap" id="settings" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="sheet-grip"></div>
+      <h2 id="settingsTitle">Settings</h2>
+
+      <div id="prefs"></div>
+      <div id="desktopPrefs" hidden></div>
+
+      <h3>Passcode</h3>
+      <div class="set-group" id="setLock"></div>
+
+      <h3>Data on this device</h3>
+      <div class="set-group">
+        <button class="set-btn rp" data-set="export">Export backup <span>.json</span></button>
+        <button class="set-btn rp" data-set="import">Import backup…</button>
+        <button class="set-btn rp" data-set="demo">Add sample tasks</button>
+        <button class="set-btn rp danger" data-set="reset">Erase everything…</button>
+      </div>
+
+      <div class="install" id="installHint"></div>
+      <button class="sheet-done rp" data-set="close">Done</button>
+    </div>
+  </div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="floaters" id="floaters" aria-hidden="true"></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="overlay" id="overlay" hidden></div>
+  <div class="lock" id="lock" hidden></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/haptics.js"></script>
+  <script src="js/anim.js"></script>
+  <script src="js/prefs.js"></script>
+  <script src="js/loot.js"></script>
+  <script src="js/sky.js"></script>
+  <script src="js/lock.js"></script>
+  <script src="js/desktop.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
