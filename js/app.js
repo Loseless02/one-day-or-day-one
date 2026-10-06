@@ -195,6 +195,13 @@
     const now = Date.now();
     const igniting = t.igniteUntil && t.igniteUntil > now;
     const nudge = (t.carried || 0) >= 3;
+    // Only rendered when there is something to show, so phone layouts don't reserve an empty row.
+    const meta = [
+      t.carried ? `<span class="chip carried" title="Carried over from previous days">carried ×${t.carried}</span>` : '',
+      igniting ? `<span class="chip ignite" data-ignite="${t.id}">${fmtClock(t.igniteUntil - now)} · just start</span>` : '',
+      t.ignited && !igniting ? '<span class="chip ignited" title="+5 XP when you finish it">ignited</span>' : '',
+      nudge ? '<span class="nudge">Too big? Split it, or send it back.</span>' : '',
+    ].join('');
     const bt = bossTierOf(t);
     const spent = bossSlainToday();
     const crownTitle = t.boss
@@ -207,12 +214,7 @@
       <div class="card-body">
         ${t.boss ? `<div class="boss-tag">${bt.name.toUpperCase()} <span class="hp"><i></i></span> <em>${bt.mult}× XP</em></div>` : ''}
         <div class="card-title" data-act="edit" title="Click to edit">${esc(t.title)}</div>
-        <div class="card-meta">
-          ${t.carried ? `<span class="chip carried" title="Carried over from previous days">carried ×${t.carried}</span>` : ''}
-          ${igniting ? `<span class="chip ignite" data-ignite="${t.id}">${fmtClock(t.igniteUntil - now)} · just start</span>` : ''}
-          ${t.ignited && !igniting ? '<span class="chip ignited" title="+5 XP when you finish it">ignited</span>' : ''}
-          ${nudge ? '<span class="nudge">Too big? Split it, or send it back.</span>' : ''}
-        </div>
+        ${meta ? `<div class="card-meta">${meta}</div>` : ''}
       </div>
       <div class="card-actions">
         <button class="act crown ${t.boss ? 'on' : ''} ${spent && !t.boss ? 'spent' : ''}" data-act="boss" title="${esc(crownTitle)}">${ICON.crown}</button>
@@ -237,7 +239,7 @@
         <div class="card-meta"><span class="dust-label">${dust.label}${dust.d ? ` · ${dust.d}d` : ''}</span></div>
       </div>
       <div class="card-actions">
-        <button class="pull" data-act="pull">Make it Day One</button>
+        <button class="pull" data-act="pull"><span class="pull-long">Make it </span>Day One</button>
         <button class="act" data-act="delete" title="Delete">${ICON.x}</button>
       </div>
     </li>`;
@@ -1187,11 +1189,14 @@
   // The quick-add lane's placeholder says you can just type (keyboards only).
   function setPlaceholders() {
     const quick = !isTouch && Prefs.get('quickLane');
-    laneInput('someday').placeholder = quick === 'someday' ? 'Just start typing. It lands here.' : 'Park it here. It will gather dust.';
+    const narrow = matchMedia('(max-width: 480px)').matches;
+    laneInput('someday').placeholder = quick === 'someday' ? 'Just start typing. It lands here.'
+      : narrow ? 'Park it for someday…' : 'Park it here. It will gather dust.';
     laneInput('today').placeholder = quick === 'today' ? 'Just start typing. What makes today Day One?' : 'What makes today Day One?';
   }
   setPlaceholders();
   Prefs.onChange((k) => { if (k === 'quickLane') setPlaceholders(); });
+  matchMedia('(max-width: 480px)').addEventListener('change', setPlaceholders);
   setInterval(tick, 1000);
   setInterval(Anim.setPhase, 60000);
   // Recorded instruments load in the background; the synth covers anything played before they arrive.

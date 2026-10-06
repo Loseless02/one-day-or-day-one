@@ -36,7 +36,9 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+/* manipulation: no double-tap zoom (quick taps on cards kept zooming the page on iPhone); pinch zoom still works.
+   overflow-x: clip: nothing can ever make the page scroll sideways (unlike hidden, it keeps the sticky header working). */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; touch-action: manipulation; overflow-x: clip; }
 body {
   font-family: var(--font);
   color: var(--text);
@@ -237,8 +239,10 @@ html[data-dir="back"]::view-transition-new(main) { animation-name: vtInBack; }
 .chip-pull.pulling { transform: scale(.8); opacity: 0; transition: .28s; }
 
 /* ------------------------------------------------------------------ lanes */
-.lanes { display: grid; grid-template-columns: 1.35fr 1fr; gap: 22px; align-items: start; }
-@media (max-width: 860px) { .lanes { grid-template-columns: 1fr; } }
+/* minmax(0, …): a plain 1fr column never shrinks below its longest unbreakable word, which pushed
+   the page wider than a phone screen with long tasks or the Mono font. */
+.lanes { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 860px) { .lanes { grid-template-columns: minmax(0, 1fr); } }
 
 .lane {
   background: rgba(15, 19, 34, .72); border: 1px solid var(--line); border-radius: calc(var(--radius) + 6px); padding: 16px; position: relative;
@@ -332,7 +336,7 @@ html[data-dir="back"]::view-transition-new(main) { animation-name: vtInBack; }
 .card.holding .orb { transform: scale(calc(1 + var(--p) * .3)); box-shadow: 0 0 calc(var(--p) * 24px) rgba(var(--a2-rgb),.8); }
 
 .card-body { flex: 1; min-width: 0; }
-.card-title { font-size: 15px; line-height: 1.35; word-wrap: break-word; cursor: text; transition: transform .1s; }
+.card-title { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; cursor: text; transition: transform .1s; }
 .card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; }
 .card-meta:empty { display: none; }
 .chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--panel2); color: var(--muted); }
@@ -667,8 +671,45 @@ body.shake .app { animation: shake .4s cubic-bezier(.36,.07,.19,.97); }
   .lv-num { font-size: 120px; }
   .d1-title, .pf-title { font-size: 46px; }
   .reveal-name { font-size: 28px; }
-  .card-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 64px; }
-  .card.someday .card-actions { max-width: none; flex-wrap: nowrap; }
+
+  /* header: logo and buttons share one row, stats below */
+  .hud { gap: 8px 10px; padding-top: 6px; padding-bottom: 10px; }
+  .brand { font-size: 12px; letter-spacing: .03em; gap: 4px; }
+  .hud-actions { gap: 5px; }
+  .icon-btn { height: 34px; min-width: 34px; padding: 0 8px; border-radius: 9px; }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  /* Day One cards: the title gets the full width; buttons sit in one row under it, next to the chips */
+  .card:not(.someday) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center; }
+  .card:not(.someday) .card-body { display: contents; }
+  .card:not(.someday) .orb { grid-column: 1; grid-row: 1 / span 2; }
+  .card:not(.someday) .boss-tag, .card:not(.someday) .card-title { grid-column: 2 / -1; margin-bottom: 0; }
+  .card:not(.someday) .card-meta { grid-column: 2 / -1; margin-top: 2px; }
+  .card:not(.someday) .card-actions { grid-column: 2 / -1; justify-self: end; margin-right: -6px; }
+  .chip, .dust-label { white-space: nowrap; }
+  .lane-head { flex-wrap: wrap; gap: 2px 8px; }
+  .hud-stats { flex-wrap: wrap; row-gap: 8px; }
+  .act { width: 32px; height: 32px; }
+
+  /* One Day cards: long text gets the full width; "Make it Day One" moves under it, beside the dust label */
+  .card.someday { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 8px; align-items: center; }
+  .card.someday .card-body { display: contents; }
+  .card.someday .card-title { grid-column: 1 / -1; }
+  .card.someday .card-meta { grid-column: 1; margin-top: 0; }
+  .card.someday .card-actions { grid-column: 2; }
+  .add input::placeholder { font-size: 14px; }
+}
+
+/* very narrow phones (iPhone SE, mini): the logo stacks onto two lines so the header stays two rows */
+@media (max-width: 400px) {
+  .brand { flex-wrap: wrap; width: 92px; row-gap: 0; line-height: 1.15; font-size: 11.5px; }
+  .brand-b { flex-basis: 100%; }
+  .boss-tag { white-space: nowrap; }
+  .boss-tag .hp { width: auto; flex: 1 1 30px; max-width: 90px; }
+}
+@media (max-width: 360px) {
+  .pull-long { display: none; }
+  .pull { padding: 7px 12px; }
 }
 
 /* ------------------------------------------------------------------ settings sheet */
