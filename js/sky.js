@@ -60,7 +60,7 @@ const Sky = (() => {
         const d = 0.25 + 0.75 * Math.sqrt(h2);
         const s = {
           e, day, x: cx + Math.cos(a) * rx * d, y: cy + Math.sin(a) * radius * d,
-          r: SIZE[e.rarity] + (e.boss ? 1.2 : 0), color: Loot.RARITY[e.rarity].color, tw: h2 * 6,
+          r: SIZE[e.rarity] + (e.boss || e.titan ? 1.2 : 0), color: Loot.RARITY[e.rarity].color, tw: h2 * 6,
         };
         stars.push(s);
         return s;
@@ -118,7 +118,7 @@ const Sky = (() => {
       g.globalAlpha = 0.85 * tw + pulse * 0.15;
       g.beginPath(); g.arc(s.x, s.y, r * 0.6, 0, Math.PI * 2); g.fill();
       g.globalAlpha = 1;
-      if (s.e.rarity === 'legendary' || s.e.boss) {
+      if (s.e.rarity === 'legendary' || s.e.boss || s.e.titan) {
         g.strokeStyle = hexA(s.color, 0.6 * tw);
         g.lineWidth = 1;
         g.beginPath();
@@ -153,7 +153,7 @@ const Sky = (() => {
     const R = Loot.RARITY[e.rarity];
     const relic = Loot.byId[e.relicId];
     const when = new Date(e.at).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    tip.innerHTML = `<b>${esc(e.title)}</b><span style="color:${R.color}">${R.label}${relic ? ' · ' + esc(relic.name) : ''}</span><span>${when} · +${e.xp} XP${e.boss ? ' · boss' : ''}</span>`;
+    tip.innerHTML = `<b>${esc(e.title)}</b><span style="color:${R.color}">${R.label}${relic ? ' · ' + esc(relic.name) : ''}</span><span>${when} · +${e.xp} XP${e.boss ? ' · boss' : ''}${e.titan ? ` · Titan, ${e.titan} hit${e.titan === 1 ? '' : 's'}` : ''}</span>`;
     tip.hidden = false;
     const tx = Math.min(Math.max(hover.x, 110), W - 110);
     tip.style.left = `${tx}px`;

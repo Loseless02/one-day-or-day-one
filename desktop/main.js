@@ -228,6 +228,7 @@ ipcMain.handle('desktop:set', (_e, key, value) => setSetting(key, value));
 ipcMain.handle('desktop:pause-shortcut', () => { globalShortcut.unregisterAll(); return true; });
 ipcMain.handle('desktop:resume-shortcut', () => registerShortcut());
 ipcMain.handle('desktop:hide', () => hideWindow());
+ipcMain.handle('desktop:show', () => reveal());
 
 // ------------------------------------------------------------------ lifecycle
 if (!app.requestSingleInstanceLock()) {

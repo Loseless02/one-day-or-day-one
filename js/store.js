@@ -17,9 +17,12 @@ const Store = (() => {
   function fresh() {
     return {
       version: 1,
-      tasks: [],          // {id, title, lane:'today'|'someday', createdAt, parkedAt, pulledAt, doneAt, boss, carried, igniteUntil, ignited}
+      tasks: [],          // {id, title, lane:'today'|'someday', createdAt, parkedAt, pulledAt, doneAt, boss, carried, igniteUntil, ignited, titan: {hp, hits, minutes} | null}
       log: [],            // {id, taskId, title, at, day, xp, rarity, relicId, note, combo, boss, bossTier, crit}
       bossSlainDay: null, // dayKey of the last boss kill: one boss per day
+      fight: null,        // active Titan round: {taskId, start, end, len, notified}
+      titanDay: { day: null, hits: 0 }, // hits landed today (daily XP cap)
+      focusMin: 0,        // lifetime minutes of completed Titan rounds
       xp: 0,
       relics: {},         // relicId -> count
       pity: 0,            // completions since last epic+

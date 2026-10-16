@@ -44,6 +44,10 @@ const Prefs = (() => {
     { key: 'quickLane', label: 'Type anywhere to add to', hint: 'Start typing with no field selected; Enter adds it and keeps you typing.', type: 'seg', def: 'someday',
       options: [['someday', 'One Day'], ['today', 'Day One']] },
 
+    { section: 'Titans' },
+    { key: 'roundMin', label: 'Focus round length', hint: 'One round = one hit on a Titan. Longer rounds pay more XP per hit.', type: 'seg', def: '25',
+      options: [['15', '15 min'], ['25', '25 min'], ['45', '45 min'], ['60', '60 min']] },
+
     { section: 'Motion & rewards' },
     { key: 'celebrate', label: 'Celebrations', hint: 'Level-ups, epic drops, perfect days. Tap: stays until you tap. 3s / 1.5s: closes by itself. Toast: small popup, no full screen.', type: 'seg', def: 'auto', preview: true,
       options: [['tap', 'Tap'], ['auto', '3s'], ['quick', '1.5s'], ['toast', 'Toast']] },

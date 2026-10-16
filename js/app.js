@@ -2,6 +2,7 @@
 
 (() => {
   const COMBO_WINDOW = 20 * 60 * 1000;
+  const TITLE_MAX = 300; // long enough to describe the task as you add it
   const IGNITE_MS = 2 * 60 * 1000;
   const RING_C = 2 * Math.PI * 19;
 
@@ -29,6 +30,18 @@
     return tier;
   };
   const bossSlainToday = () => S().bossSlainDay === today();
+
+  // Titans: big tasks with HP measured in focus rounds. Marking one gives nothing by itself;
+  // every reward comes from rounds actually fought, and a round only counts if you come back
+  // to land the hit within CLAIM_MS of it ending (so an idle timer can't farm XP).
+  const CLAIM_MS = 15 * 60 * 1000;
+  const TITAN_DAILY_HITS = 10;
+  const TITAN_FINISH_PER_HIT = 20;
+  const roundMin = () => +Prefs.get('roundMin');
+  const hitXp = (min) => Math.round(min * 0.6);
+  const titanTier = (hits) => (hits >= 6 ? 4 : hits >= 4 ? 3 : hits >= 2 ? 2 : hits >= 1 ? 1 : 0);
+  const hitsToday = () => (S().titanDay && S().titanDay.day === today() ? S().titanDay.hits : 0);
+  let pickingTitan = null; // task id whose size picker is open
   const fmtClock = (ms) => {
     const s = Math.max(0, Math.ceil(ms / 1000));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -44,6 +57,7 @@
     down: '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
     x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     up: '<svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+    sword: '<svg viewBox="0 0 24 24"><path d="M20 4 9.5 14.5"/><path d="M20 4h-5M20 4v5"/><path d="M6.5 11.5l6 6"/><path d="M8 16 4 20"/></svg>',
   };
 
   const VIEWS = ['today', 'vault', 'sky'];
@@ -191,33 +205,76 @@
       <div class="ritual-chips">${dusty.map((t) => `<button class="chip-pull" data-act="pull" data-id="${t.id}">${esc(t.title)} <span>→ Day One</span></button>`).join('')}</div>`;
   }
 
+  function titanControls(t, now) {
+    const ti = t.titan;
+    const f = S().fight;
+    if (f && f.taskId === t.id) {
+      if (now >= f.end) return `<button class="hit-btn" data-act="hit">Land the hit!</button>`;
+      return `<span class="chip fight" data-fight="${t.id}" data-round="${ti.hits + 1}">Round ${ti.hits + 1} · ${fmtClock(f.end - now)}</span>
+        <button class="mini-btn" data-act="stopfight" title="Stop this round. Only full rounds count.">Stop</button>`;
+    }
+    const busy = f && f.taskId !== t.id;
+    return `<button class="fight-btn" data-act="fight" ${busy ? 'disabled title="You are already fighting another Titan"' : `title="Start a ${roundMin()}-minute focus round"`}>${ICON.sword}<span>Fight · ${roundMin()} min</span></button>`;
+  }
+
+  function titanPicker(t) {
+    return `<div class="titan-pick">
+      <div class="titan-pick-q">How big is it? Each heart is one ${roundMin()}-minute focus round.</div>
+      <div class="titan-pick-row">${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `<button data-act="titan-size" data-size="${n}" title="${n} round${n === 1 ? '' : 's'}, about ${Math.round((n * roundMin()) / 6) / 10} h">${n}</button>`).join('')}
+        <button class="titan-pick-cancel" data-act="titan-cancel">Cancel</button></div>
+    </div>`;
+  }
+
+  function titanTag(ti) {
+    const hearts = Array.from({ length: ti.hp }, (_, i) => `<i class="${i < ti.hp - ti.hits ? 'up' : 'down'}"></i>`).join('');
+    const extra = ti.hits > ti.hp ? ` +${ti.hits - ti.hp}` : '';
+    return `<div class="titan-tag">TITAN <span class="titan-hp" title="${ti.hp - Math.min(ti.hits, ti.hp)} of ${ti.hp} HP left">${hearts}</span> <em>${ti.hits} hit${ti.hits === 1 ? '' : 's'}${extra ? ' (overtime)' : ''}</em></div>`;
+  }
+
   function dayOneCard(t) {
     const now = Date.now();
     const igniting = t.igniteUntil && t.igniteUntil > now;
-    const nudge = (t.carried || 0) >= 3;
+    const nudge = (t.carried || 0) >= 3 && !t.titan;
+    const f = S().fight;
+    const fighting = !!(t.titan && f && f.taskId === t.id);
     // Only rendered when there is something to show, so phone layouts don't reserve an empty row.
     const meta = [
+      t.titan ? titanControls(t, now) : '',
       t.carried ? `<span class="chip carried" title="Carried over from previous days">carried ×${t.carried}</span>` : '',
       igniting ? `<span class="chip ignite" data-ignite="${t.id}">${fmtClock(t.igniteUntil - now)} · just start</span>` : '',
       t.ignited && !igniting ? '<span class="chip ignited" title="+5 XP when you finish it">ignited</span>' : '',
-      nudge ? '<span class="nudge">Too big? Split it, or send it back.</span>' : '',
+      nudge ? '<span class="nudge">Too big? Split it, make it a Titan, or send it back.</span>' : '',
     ].join('');
     const bt = bossTierOf(t);
     const spent = bossSlainToday();
     const crownTitle = t.boss
       ? 'Remove the crown'
-      : spent
-        ? "Today's boss is already slain. Next crown tomorrow."
-        : `Crown as today's boss → ${bt.name}: ${bt.mult}× XP, better loot. (Waited ${taskAge(t)} day${taskAge(t) === 1 ? '' : 's'}; older tasks make stronger bosses.)`;
-    return `<li class="card ${t.boss ? `boss tier-${bt.tier}` : ''} ${igniting ? 'igniting' : ''}" data-id="${t.id}">
+      : t.titan
+        ? 'A Titan can\'t also be the boss'
+        : spent
+          ? "Today's boss is already slain. Next crown tomorrow."
+          : `Crown as today's boss → ${bt.name}: ${bt.mult}× XP, better loot. (Waited ${taskAge(t)} day${taskAge(t) === 1 ? '' : 's'}; older tasks make stronger bosses.)`;
+    const swordTitle = t.titan
+      ? 'Stop treating this as a Titan'
+      : 'Make it a Titan: a big task you fight in focus rounds. Rewards come only from rounds you actually finish.';
+    const cls = [
+      t.boss ? `boss tier-${bt.tier}` : '',
+      t.titan ? 'titan' : '',
+      fighting ? (now >= f.end ? 'claimable' : 'fighting') : '',
+      igniting ? 'igniting' : '',
+    ].join(' ');
+    return `<li class="card ${cls}" data-id="${t.id}">
       <button class="orb" data-hold="${t.id}" aria-label="Hold to complete: ${esc(t.title)}" title="Press and hold to complete"><span class="orb-core"></span></button>
       <div class="card-body">
         ${t.boss ? `<div class="boss-tag">${bt.name.toUpperCase()} <span class="hp"><i></i></span> <em>${bt.mult}× XP</em></div>` : ''}
+        ${t.titan ? titanTag(t.titan) : ''}
         <div class="card-title" data-act="edit" title="Click to edit">${esc(t.title)}</div>
         ${meta ? `<div class="card-meta">${meta}</div>` : ''}
+        ${pickingTitan === t.id ? titanPicker(t) : ''}
       </div>
       <div class="card-actions">
-        <button class="act crown ${t.boss ? 'on' : ''} ${spent && !t.boss ? 'spent' : ''}" data-act="boss" title="${esc(crownTitle)}">${ICON.crown}</button>
+        <button class="act crown ${t.boss ? 'on' : ''} ${(spent || t.titan) && !t.boss ? 'spent' : ''}" data-act="boss" title="${esc(crownTitle)}">${ICON.crown}</button>
+        <button class="act sword ${t.titan ? 'on' : ''}" data-act="titan" title="${esc(swordTitle)}">${ICON.sword}</button>
         <button class="act bolt" data-act="ignite" title="2-minute ignition: only commit to starting">${ICON.bolt}</button>
         <button class="act" data-act="park" title="Send back to One Day">${ICON.down}</button>
         <button class="act" data-act="delete" title="Delete">${ICON.x}</button>
@@ -255,6 +312,7 @@
       ['Legendaries', legs],
       ['Perfect days', Object.keys(st.perfectDays).length],
       ['Day Ones started', st.dayOnes],
+      ['Focus minutes', st.focusMin || 0],
     ];
     $('#vaultStats').innerHTML = stats.map(([k, v], i) => `<div class="stat" style="--i:${i}"><b data-count="${v}">0</b><span>${k}</span></div>`).join('');
     document.querySelectorAll('#vaultStats [data-count]').forEach((b) => { b._v = 0; Anim.countTo(b, +b.dataset.count); });
@@ -358,6 +416,7 @@
   function park(id) {
     const t = findTask(id);
     if (!t) return;
+    if (S().fight && S().fight.taskId === id) S().fight = null;
     Sound.swish(false);
     t.lane = 'someday';
     t.parkedAt = Date.now();
@@ -371,6 +430,11 @@
     const t = findTask(id);
     if (!t) return;
     const wasBoss = t.boss;
+    if (!wasBoss && t.titan) {
+      Sound.denied();
+      toast('This task is a Titan. A task is either the boss of the day or a Titan, not both.', 'titan');
+      return;
+    }
     if (!wasBoss && bossSlainToday()) {
       Sound.denied();
       el.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-18deg)' }, { transform: 'rotate(14deg)' }, { transform: 'rotate(0)' }], { duration: 320 });
@@ -406,12 +470,172 @@
     renderAll();
   }
 
+  // ---------------------------------------------------------------- titans
+  function toggleTitan(id) {
+    const t = findTask(id);
+    if (!t) return;
+    if (t.titan) {
+      if (S().fight && S().fight.taskId === id) S().fight = null;
+      const hits = t.titan.hits;
+      t.titan = null;
+      Store.save();
+      Sound.thud();
+      toast(hits ? `No longer a Titan. The XP from its ${hits} hit${hits === 1 ? '' : 's'} stays; the finishing bonus is gone.` : 'No longer a Titan.', 'titan');
+      renderAll();
+      return;
+    }
+    if (t.boss) {
+      Sound.denied();
+      toast("This task is today's boss. Remove the crown first: a task is either the boss or a Titan.", 'titan');
+      return;
+    }
+    pickingTitan = pickingTitan === id ? null : id;
+    Sound.tick();
+    renderAll();
+  }
+
+  function makeTitan(id, hp, el) {
+    const t = findTask(id);
+    if (!t) return;
+    t.titan = { hp, hits: 0, minutes: 0 };
+    pickingTitan = null;
+    Store.save();
+    const { x, y } = center(el);
+    FX.burst(x, y, { count: 30, colors: ['#ff5d5d', a2(), '#ffffff'], speed: 5 });
+    Sound.boom();
+    Haptics.play('crown');
+    toast(`Titan with ${hp} HP. Press Fight for a ${roundMin()}-minute round, then come back and land the hit.`, 'titan');
+    renderAll();
+  }
+
+  function askNotify() {
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (_) { /* unsupported */ }
+  }
+  // System notification for when the window is hidden (desktop tray, another tab).
+  function notify(title, body) {
+    if (!document.hidden) return;
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const opts = { body, icon: 'icons/icon-192.png', tag: 'titan-round' };
+      const n = new Notification(title, opts);
+      n.onclick = () => { if (window.desktop && window.desktop.show) window.desktop.show(); else window.focus(); n.close(); };
+    } catch (_) {
+      // Some mobile browsers only allow notifications through the service worker.
+      if (navigator.serviceWorker) navigator.serviceWorker.ready.then((r) => r.showNotification(title, { body, icon: 'icons/icon-192.png', tag: 'titan-round' })).catch(() => {});
+    }
+  }
+
+  function startFight(id, el) {
+    const st = S();
+    const t = findTask(id);
+    if (!t || !t.titan) return;
+    if (st.fight) {
+      if (st.fight.taskId !== id) { Sound.denied(); toast('Finish or stop the round you are already fighting first.', 'titan'); }
+      return;
+    }
+    const len = roundMin();
+    const now = Date.now();
+    st.fight = { taskId: id, start: now, end: now + len * 60000, len, notified: false };
+    Store.save();
+    askNotify();
+    Sound.boom();
+    Haptics.play('crown');
+    FX.shake(1);
+    const { x, y } = center(el);
+    FX.floatText(x, y - 10, `Round ${t.titan.hits + 1}. ${len} minutes. Go.`, { color: a2(), size: 15 });
+    renderAll();
+  }
+
+  function stopFight() {
+    const st = S();
+    if (!st.fight) return;
+    st.fight = null;
+    Store.save();
+    Sound.thud();
+    toast('Round stopped. No hit this time: only full rounds count.', 'titan');
+    renderAll();
+  }
+
+  // Lands the hit for a finished round, or lets it fizzle if nobody came back in time.
+  function claimHit() {
+    const st = S();
+    const f = st.fight;
+    const now = Date.now();
+    if (!f || now < f.end) return;
+    const t = findTask(f.taskId);
+    st.fight = null;
+    if (!t || !t.titan || t.doneAt) { Store.save(); renderAll(); return; }
+    if (now > f.end + CLAIM_MS) {
+      Store.save();
+      Sound.denied();
+      toast(`The round on "${t.title}" fizzled: the hit has to be landed within 15 minutes of the round ending.`, 'titan');
+      renderAll();
+      return;
+    }
+    st.focusMin = (st.focusMin || 0) + f.len;
+    t.titan.minutes += f.len;
+    if (hitsToday() >= TITAN_DAILY_HITS) {
+      Store.save();
+      toast(`That's ${TITAN_DAILY_HITS} hits today. The round still counts as focus time, but no more Titan XP until tomorrow. Rest is part of the fight.`, 'titan');
+      renderAll();
+      return;
+    }
+    st.titanDay = { day: today(), hits: hitsToday() + 1 };
+    t.titan.hits++;
+    const xp = hitXp(f.len);
+    const lvBefore = Store.levelInfo(st.xp).level;
+    st.xp += xp;
+    Store.save();
+    renderAll();
+
+    const card = document.querySelector(`.card[data-id="${t.id}"]`);
+    const p = card ? center(card) : { x: innerWidth / 2, y: innerHeight / 2 };
+    Sound.boom();
+    Sound.crit();
+    Haptics.play('boss');
+    FX.burst(p.x, p.y, { count: 60, colors: ['#ff5d5d', a2(), '#ffffff'], speed: 9 });
+    FX.floatText(p.x, p.y - 20, `HIT! +${xp} XP`, { color: a2(), size: 30, cls: 'xp' });
+    FX.shake(2);
+    if (card) Anim.pulse(card, 'hit-flash');
+    hudFrozen = true;
+    Anim.flyTo(p, $('#level'), { count: 12, color: a2(), onArrive() { hudFrozen = false; renderLevel(); Anim.pulse($('#level'), 'gain'); } });
+    const left = t.titan.hp - t.titan.hits;
+    toast(left > 0
+      ? `Hit landed. ${left} HP left on "${t.title}".`
+      : `"${t.title}" is out of HP. Hold its orb to finish it: +${t.titan.hits * TITAN_FINISH_PER_HIT} XP bonus and better loot.`, 'titan');
+    const lv = Store.levelInfo(st.xp);
+    if (lv.level > lvBefore) enqueue(levelOverlay(lv));
+  }
+
+  // The round timer ran out: ask the player to come back and land the hit.
+  function roundDone(f) {
+    const t = findTask(f.taskId);
+    if (!t || !t.titan) { S().fight = null; Store.save(); return; }
+    renderAll();
+    Sound.reveal('epic');
+    Haptics.play('level');
+    notify('Round complete', `Come back and land the hit on "${t.title}" within 15 minutes.`);
+    enqueue({
+      cls: 'titan-round',
+      manual: true,
+      html: `<div class="tr-card">
+        <div class="tr-swords">${ICON.sword}</div>
+        <div class="tr-kicker">Round ${t.titan.hits + 1} complete</div>
+        <div class="tr-title">Land the hit!</div>
+        <div class="tr-task">${esc(t.title)}</div>
+        <div class="tr-note">Tap anywhere. It counts if you land it within 15 minutes of the round ending.</div>
+      </div>`,
+      onClose: claimHit,
+    });
+  }
+
   let lastDeleted = null;
   function del(id, el) {
     const st = S();
     const idx = st.tasks.findIndex((t) => t.id === id);
     if (idx < 0) return;
     lastDeleted = { task: st.tasks[idx], idx };
+    if (st.fight && st.fight.taskId === id) st.fight = null;
     const card = el.closest('.card');
     Sound.thud();
     if (!Anim.reduce) {
@@ -435,27 +659,32 @@
     }, 200);
   }
 
+  // Editing uses a growing text box so long, descriptive tasks stay readable. Enter saves.
   function editTitle(id, el) {
     const t = findTask(id);
-    if (!t || el.querySelector('input')) return;
-    const input = document.createElement('input');
+    if (!t || el.querySelector('textarea')) return;
+    const input = document.createElement('textarea');
     input.className = 'edit-input';
     input.value = t.title;
-    input.maxLength = 140;
+    input.maxLength = TITLE_MAX;
+    input.rows = 1;
     el.textContent = '';
     el.appendChild(input);
+    const grow = () => { input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; };
+    grow();
+    input.addEventListener('input', grow);
     input.focus();
     input.select();
     let done = false;
     const finish = (commit) => {
       if (done) return;
       done = true;
-      const v = input.value.trim();
+      const v = input.value.replace(/\s*\n\s*/g, ' ').trim();
       if (commit && v) { t.title = v; Store.save(); }
       renderAll();
     };
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') finish(true);
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
       if (e.key === 'Escape') finish(false);
     });
     input.addEventListener('blur', () => finish(true));
@@ -516,8 +745,16 @@
     const bt = t.boss ? bossTierOf(t) : null;
     if (bt) st.bossSlainDay = today();
 
+    // titan: a round that just ended is landed first; an unfinished one is abandoned
+    if (st.fight && st.fight.taskId === t.id) {
+      if (now >= st.fight.end && now <= st.fight.end + CLAIM_MS) claimHit();
+      else st.fight = null;
+    }
+    const titanHits = t.titan ? t.titan.hits : 0;
+    const tt = titanTier(titanHits);
+
     // loot
-    const rarity = locked ? locked.rarity : Loot.roll({ bossTier: bt ? bt.tier : 0, combo, pity: st.pity });
+    const rarity = locked ? locked.rarity : Loot.roll({ bossTier: Math.max(bt ? bt.tier : 0, tt), combo, pity: st.pity });
     st.pity = rarity === 'epic' || rarity === 'legendary' ? 0 : st.pity + 1;
     const relic = locked ? Loot.byId[locked.relicId] : Loot.pick(rarity, st.relics);
     const firstFind = !st.relics[relic.id];
@@ -530,6 +767,7 @@
     let xp = 10 * (bt ? bt.mult : 1) * comboMult;
     if (crit) xp *= 2;
     xp += R.xp + (t.ignited ? 5 : 0) + (firstFind ? 15 : 0) + Math.min(before.current, 10);
+    xp += titanHits * TITAN_FINISH_PER_HIT; // zero unless rounds were actually fought
     xp = Math.round(xp);
     st.xp += xp;
 
@@ -538,7 +776,7 @@
     t.igniteUntil = 0;
     st.log.push({
       id: Store.uid(), taskId: t.id, title: t.title, at: now, day: today(), xp, rarity,
-      relicId: relic.id, note, combo, boss: !!bt, bossTier: bt ? bt.tier : 0, crit,
+      relicId: relic.id, note, combo, boss: !!bt, bossTier: bt ? bt.tier : 0, crit, titan: titanHits,
       dayOne: isNewDayOne, comboBefore, pityBefore,
     });
     if (isNewDayOne) st.dayOnes++;
@@ -576,6 +814,13 @@
       if (bt.tier >= 3) FX.confetti(['#ff5d5d', '#ffcf4a', '#ffffff', bt.tier >= 4 ? '#b77dff' : '#ff9a5d']);
       FX.floatText(innerWidth / 2, innerHeight * 0.38, `${bt.name.toUpperCase()} DEFEATED`, { color: a2(), size: 44 + bt.tier * 5, cls: 'mega', delay: 80 });
     }
+    if (titanHits) {
+      Sound.bossDown();
+      FX.flash('#ff5d5d', 0.2 + tt * 0.05);
+      if (tt >= 3) FX.confetti(['#ff5d5d', a2(), '#ffffff', a1()]);
+      FX.floatText(innerWidth / 2, innerHeight * 0.38, 'TITAN FELLED', { color: a2(), size: 46 + tt * 4, cls: 'mega', delay: 80 });
+      FX.floatText(innerWidth / 2, innerHeight * 0.38 + 50, `${titanHits} hit${titanHits === 1 ? '' : 's'} · +${titanHits * TITAN_FINISH_PER_HIT} XP bonus`, { color: '#fff', size: 18, delay: 300 });
+    }
 
     if (card) card.classList.add('completing');
     setTimeout(renderAll, 480);
@@ -612,7 +857,8 @@
     try { orb.setPointerCapture(e.pointerId); } catch (_) { /* not all pointers support capture */ }
     const card = orb.closest('.card');
     const base = Prefs.holdMs();
-    const dur = t.boss ? Math.round(bossTierOf(t).hold * (base / 650)) : base;
+    const dur = t.boss ? Math.round(bossTierOf(t).hold * (base / 650))
+      : t.titan ? Math.round(base * (1 + Math.min(t.titan.hits, 6) * 0.15)) : base;
     const riser = Sound.riser(dur);
     const t0 = performance.now();
     card.classList.add('holding');
@@ -679,6 +925,8 @@
   }
   function nextOverlay() {
     clearTimeout(autoTimer);
+    // Dismissing a card however it happens (click, Enter, Esc) runs its close action once.
+    if (showing && showing.onClose) { const fn = showing.onClose; showing.onClose = null; fn(); }
     const item = queue.shift();
     if (!item) {
       if (showing) {
@@ -792,6 +1040,7 @@
           <li><b>Press and hold</b> the orb to finish a task. Let go too early and nothing happens.</li>
           <li>Every win drops a <b>relic</b>. Most are common. Some are legendary. You never know which.</li>
           <li>Wins close together build a <b>combo</b>: more XP, rarer loot, and each note climbs higher.</li>
+          <li>Big task? Make it a <b>Titan</b> and fight it in focus rounds. Only rounds you finish pay out.</li>
           <li>Crown one <b>boss</b> a day. The longer you avoided a task, the stronger it is: Minion 2×, Boss 3×, Elite 4×, Dread 5× XP.</li>
           <li>Every finished task becomes a star in your <b>Sky</b>. Every day becomes a song.</li>
           <li>On a keyboard, <b>just start typing</b>: it lands in One Day, Enter adds it. On a phone, <b>swipe</b> cards between lanes.</li>
@@ -882,6 +1131,21 @@
       }
     }
     if (changed) { Store.save(); renderAll(); }
+
+    // Titan round: live countdown, then "land the hit", then fizzle if nobody came back.
+    const f = st.fight;
+    if (f) {
+      if (now < f.end) {
+        const chip = document.querySelector(`[data-fight="${f.taskId}"]`);
+        if (chip) chip.textContent = `Round ${chip.dataset.round} · ${fmtClock(f.end - now)}`;
+      } else if (now > f.end + CLAIM_MS) {
+        if (!(showing && showing.onClose === claimHit)) claimHit();
+      } else if (!f.notified) {
+        f.notified = true;
+        Store.save();
+        roundDone(f);
+      }
+    }
   }
 
   // ---------------------------------------------------------------- views
@@ -926,13 +1190,29 @@
   // ---------------------------------------------------------------- events
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
-  document.querySelectorAll('form.add').forEach((f) => f.addEventListener('submit', (e) => {
-    e.preventDefault();
-    Sound.unlock();
-    addTask(f.title.value, f.dataset.lane);
-    f.title.value = '';
-    f.title.focus();
-  }));
+  document.querySelectorAll('form.add').forEach((f) => {
+    f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      Sound.unlock();
+      addTask(f.title.value, f.dataset.lane);
+      f.title.value = '';
+      updateCounter(f);
+      f.title.focus();
+    });
+    // A quiet counter appears only near the limit.
+    const counter = document.createElement('span');
+    counter.className = 'char-count';
+    counter.hidden = true;
+    f.appendChild(counter);
+    f.title.addEventListener('input', () => updateCounter(f));
+  });
+  function updateCounter(f) {
+    const n = f.title.value.length;
+    const c = f.querySelector('.char-count');
+    c.hidden = n < TITLE_MAX * 0.8;
+    c.textContent = `${n}/${TITLE_MAX}`;
+    c.classList.toggle('full', n >= TITLE_MAX);
+  }
 
   const main = $('main');
   main.addEventListener('pointerdown', (e) => {
@@ -961,6 +1241,12 @@
       case 'pull': pull(id, el); break;
       case 'park': park(id, el); break;
       case 'boss': toggleBoss(id, el); break;
+      case 'titan': toggleTitan(id); break;
+      case 'titan-size': makeTitan(id, +el.dataset.size, el); break;
+      case 'titan-cancel': pickingTitan = null; renderAll(); break;
+      case 'fight': startFight(id, el); break;
+      case 'stopfight': stopFight(); break;
+      case 'hit': claimHit(); break;
       case 'ignite': ignite(id, el); break;
       case 'delete': del(id, el); break;
       case 'edit': editTitle(id, el); break;
