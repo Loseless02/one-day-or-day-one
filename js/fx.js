@@ -161,6 +161,13 @@ const FX = (() => {
     el.style.fontSize = `${size}px`;
     el.style.animationDelay = `${delay}ms`;
     floaters.appendChild(el);
+    // Fit on screen: shrink text wider than 80% of the viewport (big "… DEFEATED" banners on phones;
+    // the pop animation scales up to 1.15×), then keep it from hanging off either edge.
+    const maxW = innerWidth * 0.8;
+    const w = el.offsetWidth;
+    if (w > maxW) el.style.fontSize = `${Math.floor(size * (maxW / w))}px`;
+    const half = el.offsetWidth / 2;
+    el.style.left = `${Math.min(Math.max(x, half + 8), innerWidth - half - 8)}px`;
     el.addEventListener('animationend', () => el.remove());
   }
 

@@ -129,7 +129,7 @@ const Anim = (() => {
     root.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       const card = e.target.closest(selector);
-      if (!card || e.target.closest('button, input, .orb')) return;
+      if (!card || e.target.closest('button, input, textarea, .orb')) return;
       s = { card, x: e.clientX, y: e.clientY, dx: 0, active: false, id: e.pointerId };
     });
     root.addEventListener('pointermove', (e) => {

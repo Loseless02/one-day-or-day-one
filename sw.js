@@ -1,7 +1,7 @@
 'use strict';
 
 // Offline cache for the app shell. Bump VERSION when shipping changes so clients refresh.
-const VERSION = 'v9';
+const VERSION = 'v10';
 const CACHE = `onedaydayone-${VERSION}`;
 const ASSETS = [
   './',

@@ -449,9 +449,46 @@ html[data-dir="back"]::view-transition-new(main) { animation-name: vtInBack; }
 .tr-note { margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
 /* character counter near the 300 limit */
-.add { position: relative; }
-.char-count { position: absolute; right: 60px; bottom: -16px; font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.add { position: relative; flex-wrap: wrap; }
+.char-count {
+  position: absolute; right: 62px; top: 14px; font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums;
+  background: var(--panel); padding: 1px 4px; border-radius: 4px; pointer-events: none;
+}
 .char-count.full { color: #ff9f9f; }
+
+/* details: the box appears under the title once you start typing one */
+/* In the page the details box comes before "+", so Tab goes title → details → add; order puts it on its own row below. */
+.add input { order: 1; }
+.add > button { order: 2; }
+.add-desc {
+  order: 3; display: none; flex-basis: 100%; width: 100%; resize: none; overflow-y: auto; max-height: 180px;
+  font: inherit; font-size: 14px; line-height: 1.45; color: var(--text);
+  background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.add.has-text .add-desc, .add-desc:focus { display: block; animation: rise .25s ease both; }
+.add-desc::placeholder { color: var(--dim); }
+.add-desc:focus { border-color: rgba(var(--a2-rgb), .5); box-shadow: 0 0 0 3px rgba(var(--a2-rgb), .1); }
+@media (max-width: 640px) { .add-desc { font-size: 16px; } }
+
+.card-desc {
+  font-size: 13px; line-height: 1.45; color: var(--muted); margin-top: 4px; white-space: pre-line; overflow-wrap: anywhere; cursor: text;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-desc:hover { color: #b9c0d8; }
+.card-edit { display: flex; flex-direction: column; gap: 6px; }
+.card-edit .edit-desc { font-size: 14px; color: #c9cfe4; min-height: 52px; }
+.edit-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.edit-hint { flex: 1; font-size: 11px; color: var(--dim); min-width: 120px; }
+.edit-save {
+  border: 0; border-radius: 99px; padding: 5px 14px; font-size: 12px; font-weight: 800;
+  background: linear-gradient(135deg, var(--fill1), var(--fill2)); color: var(--on-accent);
+}
+
+/* "Won today": boss rank and Titan level next to the loot */
+.done-tag { flex: none; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.done-tag.boss { color: #ff8a8a; background: rgba(255,93,93,.12); }
+.done-tag.titan { color: #ffb39e; background: rgba(255,138,107,.12); }
 @keyframes bossShake { 25% { translate: calc(var(--p) * 1.5px) 0; } 75% { translate: calc(var(--p) * -1.5px) 0; } }
 
 /* someday + dust */
@@ -746,7 +783,11 @@ body.shake .app { animation: shake .4s cubic-bezier(.36,.07,.19,.97); }
   .card:not(.someday) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center; }
   .card:not(.someday) .card-body { display: contents; }
   .card:not(.someday) .orb { grid-column: 1; grid-row: 1 / span 2; }
-  .card:not(.someday) .boss-tag, .card:not(.someday) .titan-tag, .card:not(.someday) .card-title, .card:not(.someday) .titan-pick { grid-column: 2 / -1; margin-bottom: 0; }
+  .card:not(.someday) .boss-tag, .card:not(.someday) .titan-tag, .card:not(.someday) .card-title, .card:not(.someday) .titan-pick,
+  .card:not(.someday) .card-desc, .card:not(.someday) .card-edit { grid-column: 2 / -1; margin-bottom: 0; }
+  .card.someday .card-desc, .card.someday .card-edit { grid-column: 1 / -1; }
+  .done-list li { flex-wrap: wrap; row-gap: 4px; }
+  .done-list .done-title { flex-basis: 100%; }
   .tr-title { font-size: 40px; }
   .card:not(.someday) .card-meta { grid-column: 2 / -1; margin-top: 2px; }
   .card:not(.someday) .card-actions { grid-column: 2 / -1; justify-self: end; margin-right: -6px; }

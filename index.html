@@ -108,6 +108,7 @@
             </header>
             <form class="add" data-lane="today">
               <input name="title" placeholder="What makes today Day One?" autocomplete="off" maxlength="300" aria-label="New Day One task" enterkeyhint="done">
+              <textarea name="desc" class="add-desc" rows="2" maxlength="2000" placeholder="Details (optional). Enter adds the task, Shift+Enter starts a new line." aria-label="Task details"></textarea>
               <button type="submit" class="rp" aria-label="Add">+</button>
             </form>
             <ul class="cards" id="dayoneList"></ul>
@@ -126,6 +127,7 @@
             </header>
             <form class="add" data-lane="someday">
               <input name="title" placeholder="Park it here. It will gather dust." autocomplete="off" maxlength="300" aria-label="New One Day task" enterkeyhint="done">
+              <textarea name="desc" class="add-desc" rows="2" maxlength="2000" placeholder="Details (optional). Enter adds the task, Shift+Enter starts a new line." aria-label="Task details"></textarea>
               <button type="submit" class="rp" aria-label="Add">+</button>
             </form>
             <ul class="cards" id="onedayList"></ul>

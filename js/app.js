@@ -3,6 +3,7 @@
 (() => {
   const COMBO_WINDOW = 20 * 60 * 1000;
   const TITLE_MAX = 300; // long enough to describe the task as you add it
+  const DESC_MAX = 2000; // optional details under the title
   const IGNITE_MS = 2 * 60 * 1000;
   const RING_C = 2 * Math.PI * 19;
 
@@ -157,8 +158,10 @@
     Anim.words($('#heroLine'), line);
     $('#heroSub').textContent = sub;
 
+    // Order: the boss of the day, then Titans by level (biggest first), then everything else as added.
+    const rank = (t) => (t.boss ? 1000 : 0) + (t.titan ? 100 + t.titan.hp : 0);
     const open = st.tasks.filter((t) => t.lane === 'today' && !t.doneAt)
-      .sort((a, b) => (b.boss - a.boss) || ((a.pulledAt || a.createdAt) - (b.pulledAt || b.createdAt)));
+      .sort((a, b) => (rank(b) - rank(a)) || ((a.pulledAt || a.createdAt) - (b.pulledAt || b.createdAt)));
     const someday = st.tasks.filter((t) => t.lane === 'someday' && !t.doneAt)
       .sort((a, b) => (b.parkedAt || b.createdAt) - (a.parkedAt || a.createdAt));
 
@@ -177,7 +180,15 @@
     $('#doneList').innerHTML = wins.slice().reverse().map((l) => {
       const R = Loot.RARITY[l.rarity];
       const relic = Loot.byId[l.relicId];
+      // Older wins didn't record the Titan level; the finished task is still around today to ask.
+      const task = findTask(l.taskId);
+      const hp = l.titanHp || (task && task.titan ? task.titan.hp : 0);
+      const tags = [
+        l.boss ? `<span class="done-tag boss" title="Boss of the day">${(BOSS_TIERS[(l.bossTier || 1) - 1] || BOSS_TIERS[0]).name}</span>` : '',
+        hp ? `<span class="done-tag titan" title="Titan level ${hp}, ${l.titan || 0} of ${hp} rounds fought">Titan ${hp} · ${l.titan || 0} hit${l.titan === 1 ? '' : 's'}</span>` : '',
+      ].join('');
       return `<li><span class="done-title">${esc(l.title)}</span>
+        ${tags}
         <span class="done-loot" style="color:${R.color}" title="${esc(relic ? relic.name : '')}">${R.label}</span>
         <span class="done-xp">+${l.xp}</span>
         <button class="act undo" data-act="undo" data-log="${l.id}" title="Not actually done? Undo">${ICON.up}</button></li>`;
@@ -269,6 +280,7 @@
         ${t.boss ? `<div class="boss-tag">${bt.name.toUpperCase()} <span class="hp"><i></i></span> <em>${bt.mult}× XP</em></div>` : ''}
         ${t.titan ? titanTag(t.titan) : ''}
         <div class="card-title" data-act="edit" title="Click to edit">${esc(t.title)}</div>
+        ${descBlock(t)}
         ${meta ? `<div class="card-meta">${meta}</div>` : ''}
         ${pickingTitan === t.id ? titanPicker(t) : ''}
       </div>
@@ -282,6 +294,11 @@
     </li>`;
   }
 
+  // Optional details under the title, trimmed to a few lines; tap to open the editor.
+  function descBlock(t) {
+    return t.desc ? `<div class="card-desc" data-act="edit" data-focus="desc" title="Tap to edit details">${esc(t.desc)}</div>` : '';
+  }
+
   function dustOf(t) {
     const d = Store.daysBetween(Store.dayKey(new Date(t.parkedAt || t.createdAt)), today());
     const lvl = d >= 21 ? 3 : d >= 8 ? 2 : d >= 3 ? 1 : 0;
@@ -293,6 +310,7 @@
     return `<li class="card someday dust-${dust.lvl}" data-id="${t.id}">
       <div class="card-body">
         <div class="card-title" data-act="edit" title="Click to edit">${esc(t.title)}</div>
+        ${descBlock(t)}
         <div class="card-meta"><span class="dust-label">${dust.label}${dust.d ? ` · ${dust.d}d` : ''}</span></div>
       </div>
       <div class="card-actions">
@@ -374,7 +392,7 @@
   }
 
   // ---------------------------------------------------------------- task actions
-  function addTask(title, lane) {
+  function addTask(title, lane, desc = '') {
     title = title.trim();
     if (!title) return;
     const now = Date.now();
@@ -382,6 +400,8 @@
       id: Store.uid(), title, lane, createdAt: now, parkedAt: lane === 'someday' ? now : null,
       pulledAt: lane === 'today' ? now : null, doneAt: null, boss: false, carried: 0, igniteUntil: 0, ignited: false,
     };
+    desc = desc.trim();
+    if (desc) t.desc = desc.slice(0, DESC_MAX);
     S().tasks.push(t);
     Store.save();
     Sound.pluck(lane === 'today' ? 4 : 1, 0, 0.12);
@@ -659,35 +679,60 @@
     }, 200);
   }
 
-  // Editing uses a growing text box so long, descriptive tasks stay readable. Enter saves.
-  function editTitle(id, el) {
+  // Edit a task's title and details together, in place. Growing text boxes keep long text readable.
+  // Enter in the title saves; in the details Enter is a new line and Ctrl/Cmd+Enter saves.
+  // Clicking anywhere outside the editor saves too; Esc cancels.
+  function editTask(id, el, focus = 'title') {
     const t = findTask(id);
-    if (!t || el.querySelector('textarea')) return;
-    const input = document.createElement('textarea');
-    input.className = 'edit-input';
-    input.value = t.title;
-    input.maxLength = TITLE_MAX;
-    input.rows = 1;
-    el.textContent = '';
-    el.appendChild(input);
-    const grow = () => { input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; };
-    grow();
-    input.addEventListener('input', grow);
-    input.focus();
-    input.select();
+    const body = el.closest('.card-body');
+    if (!t || !body || body.querySelector('.card-edit')) return;
+    const box = document.createElement('div');
+    box.className = 'card-edit';
+    box.innerHTML = `
+      <textarea class="edit-input edit-title" rows="1" maxlength="${TITLE_MAX}" aria-label="Task title"></textarea>
+      <textarea class="edit-input edit-desc" rows="2" maxlength="${DESC_MAX}" placeholder="Details (optional)" aria-label="Task details"></textarea>
+      <div class="edit-bar">
+        <span class="edit-hint">Ctrl+Enter saves · Esc cancels</span>
+        <button type="button" class="mini-btn" data-edit="cancel">Cancel</button>
+        <button type="button" class="edit-save" data-edit="save">Save</button>
+      </div>`;
+    const titleEl = body.querySelector('.card-title');
+    titleEl.after(box);
+    body.querySelectorAll('.card-title, .card-desc').forEach((n) => { n.hidden = true; });
+    const ti = box.querySelector('.edit-title');
+    const de = box.querySelector('.edit-desc');
+    ti.value = t.title;
+    de.value = t.desc || '';
+    const grow = (n) => { n.style.height = 'auto'; n.style.height = `${n.scrollHeight + 2}px`; }; // +2: the border
+    [ti, de].forEach((n) => { grow(n); n.addEventListener('input', () => grow(n)); });
+    if (focus === 'desc') { de.focus(); de.setSelectionRange(de.value.length, de.value.length); } else { ti.focus(); ti.select(); }
+
     let done = false;
     const finish = (commit) => {
       if (done) return;
       done = true;
-      const v = input.value.replace(/\s*\n\s*/g, ' ').trim();
-      if (commit && v) { t.title = v; Store.save(); }
+      if (commit) {
+        const title = ti.value.replace(/\s*\n\s*/g, ' ').trim();
+        if (title) t.title = title;
+        const desc = de.value.trim();
+        if (desc) t.desc = desc; else delete t.desc;
+        Store.save();
+      }
       renderAll();
     };
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-      if (e.key === 'Escape') finish(false);
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); return; }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.target === ti)) { e.preventDefault(); finish(true); }
     });
-    input.addEventListener('blur', () => finish(true));
+    // Buttons: act on mousedown so the textarea's blur doesn't save first.
+    box.addEventListener('mousedown', (e) => {
+      const b = e.target.closest('[data-edit]');
+      if (!b) return;
+      e.preventDefault();
+      finish(b.dataset.edit === 'save');
+    });
+    box.addEventListener('click', (e) => { const b = e.target.closest('[data-edit]'); if (b) finish(b.dataset.edit === 'save'); });
+    box.addEventListener('focusout', () => setTimeout(() => { if (!box.contains(document.activeElement)) finish(true); }, 0));
   }
 
   // Undo a win: removes the log entry and its rewards. Honesty keeps the rewards meaningful.
@@ -776,7 +821,7 @@
     t.igniteUntil = 0;
     st.log.push({
       id: Store.uid(), taskId: t.id, title: t.title, at: now, day: today(), xp, rarity,
-      relicId: relic.id, note, combo, boss: !!bt, bossTier: bt ? bt.tier : 0, crit, titan: titanHits,
+      relicId: relic.id, note, combo, boss: !!bt, bossTier: bt ? bt.tier : 0, crit, titan: titanHits, titanHp: t.titan ? t.titan.hp : 0,
       dayOne: isNewDayOne, comboBefore, pityBefore,
     });
     if (isNewDayOne) st.dayOnes++;
@@ -1194,10 +1239,24 @@
     f.addEventListener('submit', (e) => {
       e.preventDefault();
       Sound.unlock();
-      addTask(f.title.value, f.dataset.lane);
+      addTask(f.title.value, f.dataset.lane, f.desc.value);
       f.title.value = '';
+      f.desc.value = '';
       updateCounter(f);
+      syncDetails(f);
       f.title.focus();
+    });
+    // Details box: appears once a title is started; Enter adds the task, Shift+Enter is a new line.
+    const syncDetails = (form) => {
+      form.classList.toggle('has-text', !!(form.title.value.trim() || form.desc.value.trim()));
+      form.desc.style.height = 'auto';
+      form.desc.style.height = `${Math.min(form.desc.scrollHeight + 2, 180)}px`; // +2: the border
+    };
+    f.title.addEventListener('input', () => syncDetails(f));
+    f.desc.addEventListener('input', () => syncDetails(f));
+    f.desc.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); }
+      if (e.key === 'Escape') f.desc.blur();
     });
     // A quiet counter appears only near the limit.
     const counter = document.createElement('span');
@@ -1249,7 +1308,7 @@
       case 'hit': claimHit(); break;
       case 'ignite': ignite(id, el); break;
       case 'delete': del(id, el); break;
-      case 'edit': editTitle(id, el); break;
+      case 'edit': editTask(id, el, el.dataset.focus); break;
       case 'undo': undoWin(el.dataset.log); break;
     }
   });
